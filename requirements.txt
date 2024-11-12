@@ -1,0 +1,8 @@
+Flask
+gunicorn
+pymongo
+PyJWT
+pytz
+requests
+python-dotenv
+firebase_admin
