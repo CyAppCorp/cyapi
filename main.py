@@ -6,6 +6,7 @@ from inh import get_ics_json, build_Json, combine_calendar, import_calendar, fet
 from polls import add_Poll, get_Available_Polls, add_user_vote, remove_Poll
 from news import add_News, get_Available_News, remove_News, modify_News
 from auth import authUser, add_Asso, add_Followers_Asso, remove_Followers_Asso
+from scheduler_config import scheduler
 
 load_dotenv()
 
@@ -70,7 +71,6 @@ def _build_cors_preflight_response():
     response.headers.add('Access-Control-Allow-Headers', "*")
     response.headers.add('Access-Control-Allow-Methods', "*")
     return response
-            
 
 @app.route('/cyapi', methods = ['POST','OPTIONS'])
 def nameRoute():
@@ -163,11 +163,25 @@ def nameRoute():
         result = get_Available_Events(db_infos)
         
     # Add a new event
-    if (request_data['usage']) == "add_event":
-        result = add_Event(request_data['event'], request_data['timestamp'], request_data['lieu'], 
-                           request_data['desc'], request_data['prix'], request_data['emoji'], 
-                           request_data['link'], request_data['asso'], request_data['image'], 
-                           request_data['encoded_creator'], key, db_events, db_infos, db_users)
+    if request_data['usage'] == "add_event":
+        result = add_Event(
+            event=request_data['event'],
+            timestamp=request_data['timestamp'],
+            lieu=request_data['lieu'],
+            desc=request_data['desc'],
+            prix=request_data['prix'],
+            emoji=request_data['emoji'],
+            link=request_data['link'],
+            asso=request_data['asso'],
+            image=request_data['image'],
+            encoded_creator=request_data['encoded_creator'],
+            key=key,
+            db_events=db_events,
+            db_infos=db_infos,
+            db_users=db_users,
+            scheduled=request_data.get('scheduled', False),
+            scheduled_time=request_data.get('scheduled_time', None)
+        )
     
     # Modify an existing event
     if (request_data['usage']) == "modify_event":
@@ -308,4 +322,7 @@ def build_response_api():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    try:
+        app.run(host="0.0.0.0", port=8080)
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()

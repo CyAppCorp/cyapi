@@ -1,6 +1,6 @@
 from librairies import *
 from auth import authName, send_New_Event_notification, send_Remove_Event_notification
-
+from scheduler_config import scheduler  # Importer le scheduler depuis le fichier de configuration
 # Adds a user to an event, returns the user if already added or adds them to the event
 def addUser_Event(id_event, event, user_id, db_events,db_users):
 
@@ -121,15 +121,28 @@ def decodeEncodedCreator(encoded_jwt, key):
         print("Error decoding JWT token:", e)
         return False  # Return False if decoding fails
 
-# Adds a new event to the database, with admin or creator verification
-def add_Event(event, timestamp, lieu, desc, prix, emoji, link, asso, image, encoded_creator, key, db_events, db_infos,db_users):
-    creator = decodeEncodedCreator(encoded_creator, key)  # Decode creator from JWT
+# Fonction qui planifie l'insertion d'un événement
+def schedule_event(event_data, scheduled_time ,db_events, db_infos, db_users):
+    try:
+        scheduled_datetime = datetime.fromisoformat(scheduled_time)
+    except ValueError:
+        print(f"Erreur : format de date invalide '{scheduled_time}'.")
+        return
+
+    trigger = DateTrigger(run_date=scheduled_datetime)
+    scheduler.add_job(add_event_to_db, trigger, args=[event_data, db_events, db_infos, db_users], id=event_data["id"])
+
+
+
+def add_Event(event, timestamp, lieu, desc, prix, emoji, link, asso, image, encoded_creator, key, db_events, db_infos, db_users, scheduled=False, scheduled_time=None):
+    # Décoder le créateur
+    creator = decodeEncodedCreator(encoded_creator, key)  
     if not creator:
         return {"status": "Invalid creator"}
 
-    id_event = str(uuid.uuid4())  # Generate a unique ID for the event
+    id_event = str(uuid.uuid4())  # Générer un ID unique pour l'événement
 
-    # Build event details
+    # Détails de l'événement
     result = {
         "id": id_event,
         "event": event,
@@ -144,32 +157,38 @@ def add_Event(event, timestamp, lieu, desc, prix, emoji, link, asso, image, enco
         "creator": creator
     }
 
-    db_collection_name = f'{id_event}_event'  # Collection name for the event
-    if db_collection_name in db_events.list_collection_names():  # If an event with the same name exists
-        event_info_removed = db_infos.infos_event.delete_one({"creator": creator, "id": id_event})  # Remove the old event info
+    if scheduled and scheduled_time:
+        # Programmer l'événement pour être ajouté plus tard
+        schedule_event(result, scheduled_time,db_events, db_infos, db_users)
+        return {"status": "Event scheduled", "event_id": id_event}
+
+    # Ajouter l'événement dans la base de données immédiatement
+    return add_event_to_db(result, db_events, db_infos, db_users)
+
+def add_event_to_db(event_data, db_events, db_infos, db_users):
+    id_event = event_data["id"]
+    creator = event_data["creator"]
+    db_collection_name = f'{id_event}_event' 
+
+    # Gestion des événements existants
+    if db_collection_name in db_events.list_collection_names():
+        event_info_removed = db_infos.infos_event.delete_one({"creator": creator, "id": id_event})
         if event_info_removed.deleted_count > 0 or creator == "admin":
-            if creator == "admin" and not event_info_removed.deleted_count > 0: # Admin can remove any event but the event is not originally created by him
-                event_creator = db_infos.infos_event.find_one({"id": id_event})["creator"]
-                db_infos.infos_event.delete_one({"creator": event_creator, "id": id_event})  # Delete the event by creator
-                result["creator"] = event_creator
-            else: # Admin can remove any event and the event is originally created by him
-                result["creator"] = "admin"
-            db_events.drop_collection(db_collection_name)  # Drop the old collection
-            db_events.create_collection(db_collection_name)  # Create a new collection for the event
-            db_infos.infos_event.insert_one(result)  # Insert new event info
-            result.pop('_id', None)
-            return result
+            db_events.drop_collection(db_collection_name)
+            db_events.create_collection(db_collection_name)
+            db_infos.infos_event.insert_one(event_data)
+            send_New_Event_notification(event_data["event"], event_data["asso"], event_data["emoji"], event_data["desc"], db_infos, db_users)
+            return {"status": "Event updated", "event_id": id_event}
         else:
             return {"status": "Wrong user"}
     else:
-        db_events.create_collection(db_collection_name)  # Create a new collection for the event
-        db_infos.infos_event.insert_one(result)  # Insert event info
-        result.pop('_id', None)
+        # Créer un nouvel événement
+        db_events.create_collection(db_collection_name)
+        db_infos.infos_event.insert_one(event_data)
+        send_New_Event_notification(event_data["event"], event_data["asso"], event_data["emoji"], event_data["desc"], db_infos, db_users)
+        return {"status": "Event added", "event_id": id_event}
 
-    send_New_Event_notification(event,asso,emoji,desc,db_infos,db_users)
-   
 
-    return result
 
 # Modifies an existing event's details
 def modify_Event(id_event, event, timestamp, lieu, desc, prix, emoji, link, asso, image, encoded_creator, key, db_events, db_users ,db_infos):
