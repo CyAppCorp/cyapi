@@ -1,35 +1,31 @@
-# INH Project Transféré sur CYAPI inh.py
+# CYAPI - REST API FOR CYAPP
 
 ## Request "Refresh Data"
-
-   Effectué par le serveur qui actualise les BDD dès qu'un étudiant exporte son agenda et qu'un nouvel emploi du temps est rajouté à la BDD
-
-   Requête entrante :
 
 ```json
    {
     "usage": "refresh_data",
     "data": {
-        "P1G1": "4avRKnJDX7",
-        "P1G2": "nKm32pZ49F",
-        "P1G3": "DLqbGUnI8d",
-        "P2G1": "47UWNJxCkO",
-        "P2G2": "xMi3Wr4JIT",
-        "ING1GIG1": "quHb25OHiT",
-        "ING1GIG2": "vfrX1YLOr8",
-        "ING1GM": "AOpmxthx2j",
-        "ING2GSI1": "Q7Xfxy9Pwx",
-        "ING2GSI2": "lqtiw77Fho",
-        "ING2GMI": "6fWlJfNPTA",
-        "ING3CS": "",
-        "ING3HPDA": "",
-        "ING3ICC": "",
-        "ING3IA": ""
+        "P1G1": "--------------",
+        "P1G2": "--------------",
+        "P1G3": "--------------",
+        "P2G1": "--------------",
+        "P2G2": "--------------",
+        "ING1GIG1": "--------------",
+        "ING1GIG2": "--------------",
+        "ING1GM": "--------------",
+        "ING2GSI1": "--------------",
+        "ING2GSI2": "--------------",
+        "ING2GMI": "--------------",
+        "ING3CS": "--------------",
+        "ING3HPDA": "--------------",
+        "ING3ICC": "--------------",
+        "ING3IA": "--------------"
     }
    }
 ```
 
-   Requête sortante :
+   Response :
 
 ```json
   {
@@ -114,8 +110,6 @@
 
 ## Requête "Fetch"
  
-   Effectué dès qu'un utilisateur va sur la page Salles de l'application
-
 
 ```json
    {
@@ -123,7 +117,7 @@
    }
 ```
 
-   Requête sortante :
+   Response :
 
 ```json
   {

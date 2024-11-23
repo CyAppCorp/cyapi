@@ -36,8 +36,6 @@ def get_Available_News(db_news):
 def add_News(title, timestamp, desc, asso, link, encoded_creator, key, db_news):
     # Decode the creator information using the custom function
     creator = decodeEncodedCreator(encoded_creator, key)
-    print("Add News")  # Debugging message
-    # If decoding fails, return an error message
     if not creator:
         return {"status": "Fuck la CORP"}  # Unauthorized access error message
     

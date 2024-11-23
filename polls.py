@@ -44,7 +44,6 @@ def add_Poll(title, options, hide_bool, timestamp, desc, asso, encoded_creator, 
     # Generate a unique ID for the poll
     id_poll = str(uuid.uuid4())
 
-    print(id_poll)  # Print the generated poll ID (for debugging purposes)
 
     # Create the poll document to insert into the database
     result = {

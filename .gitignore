@@ -1,0 +1,8 @@
+pyapi-env
+*.pyc
+__pycache__/
+/data/*.ics
+/data/*.json
+.env
+deploy.sh
+firebasekey.json

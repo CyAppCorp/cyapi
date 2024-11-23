@@ -120,7 +120,6 @@ def send_push_notification(tokens, title, body):
         try:
             # Envoyer le message
             response = messaging.send(message)
-            print(f'Successfully sent message to {token}:', response)
         except Exception as e:
             print(f'Failed to send message to {token}:', e)
 
@@ -144,9 +143,6 @@ def send_New_Event_notification(event,asso,emoji,desc,db_infos,db_users):
     notification_title = f' {emoji} {asso} | {event} '
     notification_body = desc
    
-    print(notification_title)
-    print(notification_body)
-    print(device_tokens)
     send_push_notification(device_tokens, notification_title, notification_body)
 
 def idToFCMToken(user_id,db_users):
@@ -166,8 +162,5 @@ def send_Remove_Event_notification(event,id_event,db_events,db_users,db_infos):
     notification_title = f"⚠️ Annulation {event} ⚠️"
     notification_body = f"L'évenement {event} a été annulé"
    
-    print(notification_title)
-    print(notification_body)
-    print(device_tokens)
     send_push_notification(device_tokens, notification_title, notification_body)
 
