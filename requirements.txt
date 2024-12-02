@@ -6,4 +6,3 @@ pytz
 requests
 python-dotenv
 firebase_admin
-APScheduler

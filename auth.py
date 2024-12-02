@@ -107,16 +107,33 @@ def remove_Followers_Asso(user_id,asso,db_infos,db_users):
 
     return {"status": -1 }
 
+
+def users_Followers_Asso(user_id,db_infos,db_users):
+
+    followed_by_user = db_infos.followers_event.find({"followers.user_id": user_id})
+
+    asso_names = []
+
+    for item in followed_by_user :
+        asso_names.append(item["asso"])
+    
+    result = {"followers_assos" : asso_names}
+    
+    return result 
+
+
+
 def send_push_notification(tokens, title, body):
     # Parcourir la liste des tokens et envoyer la notification à chaque utilisateur
     for token in tokens:
-        message = messaging.Message(
-            notification=messaging.Notification(
-                title=title,
-                body=body,
-            ),
-            token=token,
-        )
+        if token is not None:
+            message = messaging.Message(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                token=token,
+            )
         try:
             # Envoyer le message
             response = messaging.send(message)
@@ -136,7 +153,14 @@ def send_New_Event_notification(event,asso,emoji,desc,db_infos,db_users):
     if existing_asso and "followers" in existing_asso:
         followers = existing_asso["followers"]
         for follower in followers:
-            device_tokens.append(idToFCMToken(follower['user_id'],db_users))
+            try:
+                user_id = follower['user_id']  # Try to get user ID 
+                device_tokens.append(idToFCMToken(user_id,db_users,False))
+
+            except Exception as e:
+                user_id = follower['user_fullname'] # Old API fix
+                device_tokens.append(idToFCMToken(user_id,db_users,True))
+
     else:
         print("Document non trouvé ou le champ 'followers' est absent.")
 
@@ -145,8 +169,11 @@ def send_New_Event_notification(event,asso,emoji,desc,db_infos,db_users):
    
     send_push_notification(device_tokens, notification_title, notification_body)
 
-def idToFCMToken(user_id,db_users):
-    existing_user = db_users.users.find_one({"user_id": user_id})
+def idToFCMToken(user_id,db_users,old_api_bool):
+    if old_api_bool:
+        existing_user = db_users.users.find_one({"user_fullname": user_id})
+    else:
+        existing_user = db_users.users.find_one({"user_id": user_id})
     return existing_user['token']
 
 
@@ -157,9 +184,16 @@ def send_Remove_Event_notification(event,id_event,db_events,db_users,db_infos):
     if db_collection_name in db_events.list_collection_names():
         event_collection = db_events[db_collection_name]
         for user in event_collection.find():
-            device_tokens.append(idToFCMToken(user['user_id'],db_users))
+            try:
+                user_id = user['user_id']  # Try to get user ID 
+                device_tokens.append(idToFCMToken(user_id,db_users,False))
+            except Exception as e:
+                user_id = user['user'] # Old API fix
+                device_tokens.append(idToFCMToken(user_id,db_users,True))
 
-    notification_title = f"⚠️ Annulation {event} ⚠️"
+
+
+    notification_title = f"⚠️ Annulation Évenement ⚠️"
     notification_body = f"L'évenement {event} a été annulé"
    
     send_push_notification(device_tokens, notification_title, notification_body)

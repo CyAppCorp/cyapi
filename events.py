@@ -1,6 +1,5 @@
 from librairies import *
 from auth import authName, send_New_Event_notification, send_Remove_Event_notification
-from scheduler_config import scheduler  # Importer le scheduler depuis le fichier de configuration
 # Adds a user to an event, returns the user if already added or adds them to the event
 def addUser_Event(id_event, event, user_id, db_events,db_users):
 
@@ -77,7 +76,8 @@ def users_Event(id_event, event, db_events):
 
     for document in data_list:
         del document['_id']  # Remove internal MongoDB ID from each document
-        del document['user_id']
+        if 'user_id' in document:
+            del document['user_id']
 
     result = {
         "event": event,
@@ -85,32 +85,63 @@ def users_Event(id_event, event, db_events):
         "users": data_list  # List of users
     }
     return result
-
-# Retrieves all available events, filters expired ones
-def get_Available_Events(db_infos):
+# Retrieves all available events and filters expired ones
+def get_Available_Events(db_infos, db_events, db_users, admin=False):
     all_data = db_infos.infos_event.find({})  # Get all events from the database
     events_list = list(all_data)
     nbEventsTotal = db_infos.infos_event.count_documents({})  # Total number of events
-
-    filtered_events_list = []
-    filtered_events_expired_list = []
+    nbEventScheduled = 0
+    filtered_events_list = []  # List of available events
+    filtered_events_expired_list = []  # List of expired events
 
     for document in events_list:
         del document['_id']  # Remove MongoDB ID
-        if document['timestamp'] < (time.time() - 3600):  
-            filtered_events_expired_list.append(document)
-            continue
-        filtered_events_list.append(document)  # Add to the available events list
-    
+        is_admin = admin  # Determine if the user is an admin
+
+        # Check if the event is expired
+        if document['timestamp'] < (time.time() - 3600):
+            filtered_events_expired_list.append(document)  # Add to expired events list
+            continue  # Skip to the next event
+        else:
+            # Check if the event is scheduled
+            if document["scheduled_time"] != None:
+                # If the scheduled time has passed
+                if datetime.fromisoformat(document["scheduled_time"]).timestamp() < time.time():
+
+                    filtered_events_list.append(document)  # Add to available events list
+
+                    # Update the event to remove scheduled status and time
+                    db_infos.infos_event.update_one({"id": document["id"]}, {"$set": {"scheduled_bool": False, "scheduled_time": None}})  # Update event info                
+
+
+                    # Send notification about the event
+                    send_New_Event_notification(document["event"], document["asso"], document["emoji"], document["desc"], db_infos, db_users)
+                    continue  # Skip to the next event
+
+                else:
+                    nbEventScheduled = nbEventScheduled + 1
+
+                    # If the user is an admin, include the event in the available list
+                    if is_admin:
+                        filtered_events_list.append(document)
+                        continue  # Skip to the next event
+            else:
+                filtered_events_list.append(document)  # Add to the available events list
+                continue  # Skip to the next event
+
+
     nbEvents = len(filtered_events_list)  # Count non-expired events
     
+    # Prepare the result to return
     result = {
-        "nb_events": nbEvents,  # Number of available events
-        "nb_events_expired": nbEventsTotal - nbEvents,  # Number of expired events
-        "events": filtered_events_list,  # Available events
-        "events_expired": filtered_events_expired_list  # Expired events
+        "nb_events": nbEvents,  # Number of non-expired events
+        "nb_event_scheduled" : nbEventScheduled,
+        "nb_events_expired": nbEventsTotal - (nbEvents+nbEventScheduled),  # Number of expired events
+        "events": filtered_events_list,  # List of available events
+        "events_expired": filtered_events_expired_list  # List of expired events
     }
     return result
+
 
 # Decodes the creator's information using JWT
 def decodeEncodedCreator(encoded_jwt, key):
@@ -120,18 +151,6 @@ def decodeEncodedCreator(encoded_jwt, key):
     except jwt.exceptions.DecodeError as e:
         print("Error decoding JWT token:", e)
         return False  # Return False if decoding fails
-
-# Fonction qui planifie l'insertion d'un événement
-def schedule_event(event_data, scheduled_time ,db_events, db_infos, db_users):
-    try:
-        scheduled_datetime = datetime.fromisoformat(scheduled_time)
-    except ValueError:
-        print(f"Erreur : format de date invalide '{scheduled_time}'.")
-        return
-
-    trigger = DateTrigger(run_date=scheduled_datetime)
-    scheduler.add_job(add_event_to_db, trigger, args=[event_data, db_events, db_infos, db_users], id=event_data["id"])
-
 
 
 def add_Event(event, timestamp, lieu, desc, prix, emoji, link, asso, image, encoded_creator, key, db_events, db_infos, db_users, scheduled=False, scheduled_time=None):
@@ -154,18 +173,17 @@ def add_Event(event, timestamp, lieu, desc, prix, emoji, link, asso, image, enco
         "desc": desc,
         "image": image,
         "prix": prix,
-        "creator": creator
+        "creator": creator,
+        "scheduled_bool": scheduled,
+        "scheduled_time":scheduled_time
+
     }
 
-    if scheduled and scheduled_time:
-        # Programmer l'événement pour être ajouté plus tard
-        schedule_event(result, scheduled_time,db_events, db_infos, db_users)
-        return {"status": "Event scheduled", "event_id": id_event}
 
-    # Ajouter l'événement dans la base de données immédiatement
     return add_event_to_db(result, db_events, db_infos, db_users)
 
 def add_event_to_db(event_data, db_events, db_infos, db_users):
+
     id_event = event_data["id"]
     creator = event_data["creator"]
     db_collection_name = f'{id_event}_event' 
@@ -177,7 +195,8 @@ def add_event_to_db(event_data, db_events, db_infos, db_users):
             db_events.drop_collection(db_collection_name)
             db_events.create_collection(db_collection_name)
             db_infos.infos_event.insert_one(event_data)
-            send_New_Event_notification(event_data["event"], event_data["asso"], event_data["emoji"], event_data["desc"], db_infos, db_users)
+            if event_data["scheduled_time"] == None and event_data["scheduled_bool"] == False:
+                send_New_Event_notification(event_data["event"], event_data["asso"], event_data["emoji"], event_data["desc"], db_infos, db_users)
             return {"status": "Event updated", "event_id": id_event}
         else:
             return {"status": "Wrong user"}
@@ -185,7 +204,9 @@ def add_event_to_db(event_data, db_events, db_infos, db_users):
         # Créer un nouvel événement
         db_events.create_collection(db_collection_name)
         db_infos.infos_event.insert_one(event_data)
-        send_New_Event_notification(event_data["event"], event_data["asso"], event_data["emoji"], event_data["desc"], db_infos, db_users)
+        if event_data["scheduled_time"] == None  and event_data["scheduled_bool"] == False:
+            send_New_Event_notification(event_data["event"], event_data["asso"], event_data["emoji"], event_data["desc"], db_infos, db_users)
+
         return {"status": "Event added", "event_id": id_event}
 
 

@@ -5,8 +5,7 @@ from rooms import add_Rooms, get_Rooms, delete_Rooms, warn_User
 from inh import get_ics_json, build_Json, combine_calendar, import_calendar, fetch
 from polls import add_Poll, get_Available_Polls, add_user_vote, remove_Poll
 from news import add_News, get_Available_News, remove_News, modify_News
-from auth import authUser, add_Asso, add_Followers_Asso, remove_Followers_Asso
-from scheduler_config import scheduler
+from auth import authUser, add_Asso, add_Followers_Asso, remove_Followers_Asso,users_Followers_Asso
 
 load_dotenv()
 
@@ -38,7 +37,6 @@ Waits for a POST request and returns data based on conditions
 app = Flask(__name__)
 
 try :
-    print(fb_key)
     cred = credentials.Certificate(fb_key)
     firebase_admin.initialize_app(cred)
     print("Connexion à Firebase établie")
@@ -94,6 +92,9 @@ def nameRoute():
 
     if(request_data['usage']) == "remove_followers_asso":
         result = remove_Followers_Asso(request_data["user_id"],request_data["asso"],db_infos,db_users)
+
+    if(request_data['usage']) == "users_followers_asso":
+        result = users_Followers_Asso(request_data["user_id"],db_infos,db_users)
             
 
 
@@ -160,7 +161,7 @@ def nameRoute():
 
     # Retrieve all available events
     if (request_data['usage']) == "available_events":
-        result = get_Available_Events(db_infos)
+        result = get_Available_Events(db_infos,db_events,db_users,request_data.get('admin', False))
         
     # Add a new event
     if request_data['usage'] == "add_event":
@@ -322,7 +323,4 @@ def build_response_api():
 
 
 if __name__ == "__main__":
-    try:
-        app.run(host="0.0.0.0", port=8080)
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
+    app.run(host="0.0.0.0", port=8080)
