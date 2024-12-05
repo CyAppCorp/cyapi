@@ -52,6 +52,81 @@ def add_Asso(asso,desc, db_infos):
     return result  # Return the created poll
 
 
+
+def add_All_Followers_Asso(user_id,assos,db_infos,db_users):
+    existing_user = db_users.users.find_one({"user_id": user_id})
+
+    if not existing_user:
+        return {"status": "User Not Found"}
+
+    for asso in assos:
+        existing_asso = db_infos.followers_event.find_one({"asso": asso})
+
+        if not existing_asso:
+            return {"status": "Association Not Found"}
+
+        new_follower = {
+                "user_id": existing_user["user_id"],
+                "user_fullname": existing_user["user_fullname"]
+            }
+
+        
+        existing_followers = existing_asso.get("followers", [])
+
+        if not any(follower['user_id'] == new_follower['user_id'] for follower in existing_followers):
+            db_infos.followers_event.update_one(
+                {"asso": asso},
+                {"$push": {"followers": new_follower}}
+            )
+    return {"status": "Follower added successfully"}
+
+
+def remove_All_Followers_Asso(user_id,assos,db_infos,db_users):
+
+    existing_user = db_users.users.find_one({"user_id": user_id})
+
+    if not existing_user:
+        return {"status": "User Not Found"}
+
+
+    for asso in assos:
+        existing_asso = db_infos.followers_event.find_one({"asso": asso})
+        if not existing_asso:
+            return {"status": "Association Not Found"}
+
+        result = db_infos.followers_event.update_one(
+            {"asso": asso},
+            {"$pull": {"followers": {"user_id": user_id}}}
+        )
+    return {"status": "Follower removed successfully"}
+
+
+def remove_Followers_Asso(user_id,asso,db_infos,db_users):
+    
+    existing_asso = db_infos.followers_event.find_one({"asso": asso})
+    existing_user = db_users.users.find_one({"user_id": user_id})
+
+    if not existing_asso:
+        return {"status": "Association Not Found"}
+    if not existing_asso:
+        return {"status": "Association Not Found"}
+
+    result = db_infos.followers_event.update_one(
+        {"asso": asso},
+        {"$pull": {"followers": {"user_id": user_id}}}
+    )
+
+    # Check if the update was successful
+    if result.modified_count > 0:
+        return {"status": "Follower removed successfully"}
+    else:
+        return {"status": "Follower not found in the association"}
+
+
+
+    return {"status": -1 }
+
+
 def add_Followers_Asso(user_id,asso,db_infos,db_users):
     
     existing_asso = db_infos.followers_event.find_one({"asso": asso})
@@ -89,8 +164,8 @@ def remove_Followers_Asso(user_id,asso,db_infos,db_users):
 
     if not existing_asso:
         return {"status": "Association Not Found"}
-    if not existing_asso:
-        return {"status": "Association Not Found"}
+    if not existing_user:
+        return {"status": "User Not Found"}
 
     result = db_infos.followers_event.update_one(
         {"asso": asso},

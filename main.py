@@ -5,7 +5,7 @@ from rooms import add_Rooms, get_Rooms, delete_Rooms, warn_User
 from inh import get_ics_json, build_Json, combine_calendar, import_calendar, fetch
 from polls import add_Poll, get_Available_Polls, add_user_vote, remove_Poll
 from news import add_News, get_Available_News, remove_News, modify_News
-from auth import authUser, add_Asso, add_Followers_Asso, remove_Followers_Asso,users_Followers_Asso
+from auth import authUser, add_Asso, add_Followers_Asso, remove_Followers_Asso,users_Followers_Asso,add_All_Followers_Asso,remove_All_Followers_Asso
 
 load_dotenv()
 
@@ -92,6 +92,13 @@ def nameRoute():
 
     if(request_data['usage']) == "remove_followers_asso":
         result = remove_Followers_Asso(request_data["user_id"],request_data["asso"],db_infos,db_users)
+
+    if(request_data['usage']) == "add_all_followers_asso":
+        result = add_All_Followers_Asso(request_data["user_id"],request_data["assos"],db_infos,db_users)
+
+    if(request_data['usage']) == "remove_all_followers_asso":
+        result = remove_All_Followers_Asso(request_data["user_id"],request_data["assos"],db_infos,db_users)
+
 
     if(request_data['usage']) == "users_followers_asso":
         result = users_Followers_Asso(request_data["user_id"],db_infos,db_users)
