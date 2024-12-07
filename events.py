@@ -223,7 +223,7 @@ def modify_Event(id_event, event, timestamp, lieu, desc, prix, emoji, link, asso
     if db_collection_name in db_events.list_collection_names():
         existing_event = db_infos.infos_event.find_one({"id": id_event})  # Find the event in the database
         if existing_event and (existing_event["creator"] == creator or creator == "admin"):
-            if existing_event["timestamp"] != timestamp:
+            if timestamp > time.time(): # On modifie la date de l'event
                 send_New_Event_notification(event,asso,emoji,desc,db_infos,db_users)
             
             updated_event = {
@@ -252,7 +252,11 @@ def remove_Event(id_event, event, encoded_creator, key, db_events,db_users,db_in
 
     db_collection_name = f'{id_event}_event'
     if db_collection_name in db_events.list_collection_names():
-        send_Remove_Event_notification(event,id_event,db_events,db_users,db_infos)
+        event = db_infos.infos_event.find_one({"creator": creator, "id": id_event})
+
+        if event["timestamp"] > time.time:
+            send_Remove_Event_notification(event,id_event,db_events,db_users,db_infos)
+            
         event_collection = db_events[db_collection_name]
         info_removed = db_infos.infos_event.delete_one({"creator": creator, "id": id_event})  # Delete event info
         if info_removed.deleted_count > 0 or creator == "admin":

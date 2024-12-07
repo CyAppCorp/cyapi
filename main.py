@@ -142,7 +142,7 @@ def nameRoute():
                 id_event = existing_event["id"]
 
         try:
-            id_event = request_data['user_id']  # Try to get user ID from request
+            user_id = request_data['user_id']  # Try to get user ID from request
         except Exception as e:
             # If user ID is missing, fall back to old API connection to find the event by name
             print("Connecting to old API")
