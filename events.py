@@ -252,9 +252,9 @@ def remove_Event(id_event, event, encoded_creator, key, db_events,db_users,db_in
 
     db_collection_name = f'{id_event}_event'
     if db_collection_name in db_events.list_collection_names():
-        event = db_infos.infos_event.find_one({"creator": creator, "id": id_event})
+        existing_event = db_infos.infos_event.find_one({"creator": creator, "id": id_event})
 
-        if event["timestamp"] > time.time():
+        if existing_event["timestamp"] > time.time():
             send_Remove_Event_notification(event,id_event,db_events,db_users,db_infos)
 
         event_collection = db_events[db_collection_name]
