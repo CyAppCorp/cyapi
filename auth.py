@@ -6,26 +6,27 @@ def authUser(token,username,user_fullname,user_email,db_infos,db_users):
     existing_user = db_users.users.find_one({"username": username, "user_email": user_email})
 
     if existing_user:
-        # Si l'utilisateur existe déjà, renvoie l'ID existant
-        return {"user_id": str(existing_user["user_id"])}
-
-    user_id = str(uuid.uuid4())
-
-    result = {
-        "user_id": user_id,
-        "token": token,
-        "username": username,      
-        "user_fullname": user_fullname ,   
-        "user_email": user_email,
-    }
-
+        user_id = str(existing_user["user_id"])
+        # Si l'utilisateur existe déjà, renvoie l'ID existant mais mettre à jour son token fcm
+        db_users.users.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"token": token}}
+                )
+        print(f"Token updated for user with ID: {user_id}")
+    else :
+        user_id = str(uuid.uuid4())
+        result = {
+            "user_id": user_id,
+            "token": token,
+            "username": username,      
+            "user_fullname": user_fullname ,   
+            "user_email": user_email,
+        }
+        db_users.users.insert_one(result)
+    
     response = {
         "user_id" : user_id
     }
-
-    db_users.users.insert_one(result)
-
-    add_Followers_Asso(user_id,"BDE",db_infos,db_users)
 
     return response
 
