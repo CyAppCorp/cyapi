@@ -110,6 +110,8 @@ def get_Available_Events(db_infos, db_events, db_users, admin=False):
                     {"id": document["id"]},
                     {"$set": {"scheduled_bool": False, "scheduled_time": None}}
                 )
+                scheduled_time = None
+
             # Check if the event is scheduled
             if scheduled_time != None:
                 # If the scheduled time has passed
