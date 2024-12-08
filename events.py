@@ -103,8 +103,15 @@ def get_Available_Events(db_infos, db_events, db_users, admin=False):
             filtered_events_expired_list.append(document)  # Add to expired events list
             continue  # Skip to the next event
         else:
+            if "scheduled_time" in document:
+                scheduled_time = document["scheduled_time"]
+            else:
+                db_infos.infos_event.update_one(
+                    {"id": document["id"]},
+                    {"$set": {"scheduled_bool": False, "scheduled_time": None}}
+                )
             # Check if the event is scheduled
-            if document["scheduled_time"] != None:
+            if scheduled_time != None:
                 # If the scheduled time has passed
                 if datetime.fromisoformat(document["scheduled_time"]).timestamp() < time.time():
 
