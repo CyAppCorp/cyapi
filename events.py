@@ -223,7 +223,7 @@ def modify_Event(id_event, event, timestamp, lieu, desc, prix, emoji, link, asso
     if db_collection_name in db_events.list_collection_names():
         existing_event = db_infos.infos_event.find_one({"id": id_event})  # Find the event in the database
         if existing_event and (existing_event["creator"] == creator or creator == "admin"):
-            if timestamp > time.time(): # On modifie la date de l'event
+            if timestamp > time.time() and existing_event["timestamp"] != timestamp : # On modifie la date de l'event
                 send_New_Event_notification(event,asso,emoji,desc,db_infos,db_users)
             
             updated_event = {
