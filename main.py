@@ -70,7 +70,7 @@ def _build_cors_preflight_response():
     response.headers.add('Access-Control-Allow-Methods', "*")
     return response
 
-@app.route('/cyapi', methods = ['POST','OPTIONS'])
+@app.route('/cergy/cyapi', methods = ['POST','OPTIONS'])
 def nameRoute():
     
     # Handle CORS preflight request
@@ -302,7 +302,7 @@ def nameRoute():
     return response
 
 
-@app.route('/inh_api', methods=['POST'])
+@app.route('/cergy/inh_api', methods=['POST'])
 def build_response_api():
     
     request_data = json.loads(request.data.decode("utf-8"))  # Decode incoming JSON request
