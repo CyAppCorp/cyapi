@@ -21,7 +21,7 @@ def get_calendar_from_db():
         print(data)
     
     ids = [value for value in data.values() if value != ""]  # Extract non-empty values (calendar IDs)
-    base_url = "https://cytt.app/"
+    base_url = "http://cytt.app:8000/"
     urls = [f"{base_url}{id}.ics" for id in ids]  # Construct .ics URLs
     return urls
 
@@ -159,7 +159,8 @@ def next_course(json_file, location1, fixed_time=None):
 
 # Function to check room availability based on today's course schedule
 def fetch(fixed_time=None):
-    toutes_salles = ["A001", "E101", "E102", "E103", "E104", "E105", "E106", "E107", "E108", "E109", "E201", "E209", "E210", "E211", "E212", "E213", "E214", "E215", "E217", "E218"]  # List of rooms
+    toutes_salles = ["A001", "E101", "E102", "E103", "E104", "E105", "E106", "E107", "E108", "E109", "E201", "E209", "E210", "E211", "E212", "E213", "E214", "E215", "E217", "E218"] 
+ # List of rooms
 
     with open('./data/cours_du_jour.json', 'r') as f:
         cours_du_jour = json.load(f)  # Load the JSON file with today's courses
@@ -202,7 +203,10 @@ def fetch(fixed_time=None):
             if not already_exists:
                 salles_vide_prochain_cours.append({salle: course_info})
 
-    salles_vide_journee = [salle for salle in toutes_salles if salle != "A001" and salle not in salles_remplies and salle not in salles_vide_prochain_cours]
+    noms_salles_remplies = [list(dico.keys())[0] for dico in salles_remplies]
+    noms_salles_vide_prochain_cours = [list(dico.keys())[0] for dico in salles_vide_prochain_cours]
+    
+    salles_vide_journee = [salle for salle in toutes_salles if salle != "A001" and salle not in noms_salles_remplies and salle not in noms_salles_vide_prochain_cours]
 
     resultat = {
         "salles_vide_journee": {"locations": salles_vide_journee},
