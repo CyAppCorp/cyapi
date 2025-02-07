@@ -85,14 +85,55 @@ def users_Event(id_event, event, db_events):
         "users": data_list  # List of users
     }
     return result
+
+def transformEvent(event):
+    if event["asso_id"] == "bde":
+        event["asso_id"] = "bde_cergy"
+    if event["asso_id"] == "bds":
+        event["asso_id"] = "bds_cergy"
+    event["old_id"] = event.pop("id")
+    event["id"] = str(uuid.uuid4())  # Générer un ID unique pour l'événement
+
+    event["asso"] = event.pop("asso_id").upper()
+    event["event"] = event.pop("title")
+    if event.get("poster"):  # Vérifie si "poster" existe et n'est pas None
+        base_url = "https://tekiens.net"
+        event["image"] = f"{base_url}{event.pop('poster')}"
+    else:
+        event.pop("poster", None)  # Supprime la clé "poster" si elle existe
+        event["image"] = ""
+    event["desc"] = event.pop("description")
+    event["emoji"] = "➕"
+    event["lieu"] = event.pop("place")
+    if event.get("price"):  # Vérifie si "poster" existe et n'est pas None
+        event["prix"] = str(event.pop('price'))
+    else:
+        event.pop("price", None)  # Supprime la clé "poster" si elle existe
+        event["prix"] = "0"
+    date_format = "%Y-%m-%d %H:%M:%S"
+    date_obj = datetime.strptime(event.pop('date'), date_format)
+    timestamp = int(date_obj.timestamp())
+    event["timestamp"] = timestamp
+    event.pop("createDate")
+    event.pop("lastUpdateDate")
+    event.pop("capacity")
+    event.pop("access")
+    event.pop("status")
+    event.pop("duration")
+    event["creator"] = "CERGY"
+    event["scheduled_bool"] = False
+    event["scheduled_time"] = None
+    return event
+
 # Retrieves all available events and filters expired ones
 def get_Available_Events(db_infos, db_events, db_users, admin=False):  # Effectuer une requête GET
 
     api_url = "https://tekiens.net/api/events"
-
+    filtered_events_list = []
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        response = requests.get(api_url, params={})
+        response = requests.get(api_url, params={"after": current_time})
         response.raise_for_status()  # Vérifie que la requête s'est bien passée (status code 200)
         data = response.json()  # Les données renvoyées sont au format JSON
 
@@ -101,44 +142,12 @@ def get_Available_Events(db_infos, db_events, db_users, admin=False):  # Effectu
             old_events = events
             for event in events:
                 if not db_infos.infos_event.find_one({"old_id": event["id"]}):
-                    if event["asso_id"] == "bde":
-                        event["asso_id"] = "bde_cergy"
-                    if event["asso_id"] == "bds":
-                        event["asso_id"] = "bds_cergy"
-                    event["old_id"] = event.pop("id")
-                    event["id"] = str(uuid.uuid4())  # Générer un ID unique pour l'événement
-
-                    event["asso"] = event.pop("asso_id").upper()
-                    event["event"] = event.pop("title")
-                    if event.get("poster"):  # Vérifie si "poster" existe et n'est pas None
-                        base_url = "https://tekiens.net"
-                        event["image"] = f"{base_url}{event.pop('poster')}"
-                    else:
-                        event.pop("poster", None)  # Supprime la clé "poster" si elle existe
-                        event["image"] = ""
-                    event["desc"] = event.pop("description")
-                    event["emoji"] = "😍"
-                    event["lieu"] = event.pop("place")
-                    if event.get("price"):  # Vérifie si "poster" existe et n'est pas None
-                        event["prix"] = str(event.pop('price'))
-                    else:
-                        event.pop("price", None)  # Supprime la clé "poster" si elle existe
-                        event["prix"] = "0"
-                    date_format = "%Y-%m-%d %H:%M:%S"
-                    date_obj = datetime.strptime(event.pop('date'), date_format)
-                    timestamp = int(date_obj.timestamp())
-                    event["timestamp"] = timestamp
-                    event.pop("createDate")
-                    event.pop("lastUpdateDate")
-                    event.pop("capacity")
-                    event.pop("access")
-                    event.pop("status")
-                    event.pop("duration")
-                    event["creator"] = "Cergy"
-                    event["scheduled_bool"] = False
-                    event["scheduled_time"] = None
+                    event = transformEvent(event)
                     add_event_to_db(event, db_events, db_infos, db_users)
                     event.pop("_id")
+                else:
+                    event = transformEvent(event)
+                filtered_events_list.append(event)
         # Affiche le JSON unique de façon lisible
         else:
             print(f"Erreur lors de la récupération des événements : {data.get('error')}")
@@ -148,17 +157,14 @@ def get_Available_Events(db_infos, db_events, db_users, admin=False):  # Effectu
 
 
 
-    # nbEvents = len(filtered_events_list)  # Count non-expired events
+    nbEvents = len(filtered_events_list)  # Count non-expired events
     
     # # Prepare the result to return
-    # result = {
-    #     "nb_events": nbEvents,  # Number of non-expired events
-    #     "nb_event_scheduled" : nbEventScheduled,
-    #     "nb_events_expired": nbEventsTotal - (nbEvents+nbEventScheduled),  # Number of expired events
-    #     "events": filtered_events_list,  # List of available events
-    #     "events_expired": filtered_events_expired_list  # List of expired events
-    # }
-    return events
+    result = {
+        "nb_events": nbEvents,  # Number of non-expired events
+        "events": filtered_events_list,  # List of available events
+    }
+    return result
 
 
 # Decodes the creator's information using JWT
@@ -214,7 +220,7 @@ def add_event_to_db(event_data, db_events, db_infos, db_users):
             db_events.create_collection(db_collection_name)
             db_infos.infos_event.insert_one(event_data)
             if event_data["scheduled_time"] == None and event_data["scheduled_bool"] == False:
-                print("Envoyer notif")
+                print("#send_New_Notification non active CERGY")
                 # send_New_Event_notification(event_data["event"], event_data["asso"], event_data["emoji"], event_data["desc"], db_infos, db_users)
             return {"status": "Event updated", "event_id": id_event}
         else:
@@ -225,7 +231,7 @@ def add_event_to_db(event_data, db_events, db_infos, db_users):
         db_infos.infos_event.insert_one(event_data)
         if event_data["scheduled_time"] == None  and event_data["scheduled_bool"] == False:
             # send_New_Event_notification(event_data["event"], event_data["asso"], event_data["emoji"], event_data["desc"], db_infos, db_users)
-            print("Envoyer notif")
+            print("#send_New_Notification non active CERGY")
         return {"status": "Event added", "event_id": id_event}
 
 
