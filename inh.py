@@ -21,7 +21,7 @@ def get_calendar_from_db():
         print(data)
     
     ids = [value for value in data.values() if value != ""]  # Extract non-empty values (calendar IDs)
-    base_url = "http://cytt.app:8000/"
+    base_url = "https://cytt.app/"
     urls = [f"{base_url}{id}.ics" for id in ids]  # Construct .ics URLs
     return urls
 

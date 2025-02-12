@@ -302,12 +302,14 @@ def nameRoute():
     return response
 
 
-@app.route('/inh_api', methods=['POST'])
+@app.route('/inh_api', methods=['POST','OPTIONS'])
 def build_response_api():
+    if request.method == "OPTIONS": 
+        return _build_cors_preflight_response()
     
     request_data = json.loads(request.data.decode("utf-8"))  # Decode incoming JSON request
     
-    fixed_time = None
+    fixed_time = request_data.get("fixed_time")
 
     # Refresh ICS calendar data and rebuild the calendar
     if request_data["usage"] == "refresh_data":
@@ -317,16 +319,47 @@ def build_response_api():
             print("Building JSON")
             # Combine and build calendar from ICS files
             build_Json(combine_calendar(import_calendar()), fixed_time)
-            response = fetch(fixed_time)  # Fetch the newly built calendar
-            return jsonify(response)
+            res = fetch(fixed_time)  # Fetch the newly built calendar
+            
         else:
-            return jsonify({"error": "Failed to refresh data."}), 500
+            res = ({"error": "Failed to refresh data."}), 500
 
     # Fetch the existing calendar data
     if(request_data["usage"]) == "fetch":
         print("Fetching data")
-        response = fetch(fixed_time)
-        return jsonify(response)
+        res = fetch(fixed_time)
+    
+    #Only in test NOT IN PROD ENV !
+    if request_data["usage"] == "refresh_links":
+
+        try:
+            response = requests.get('https://cytt.app/api/feeds/info')
+            feeds_data = response.json()
+        except Exception as e:
+            return jsonify({"error": f"Erreur lors de la récupération des feeds : {str(e)}"}), 500
+
+        # Construire le mapping des groupes vers les flux ICS
+        group_to_feed = {group['name']: group['feedUrl'].split('/')[-1].split('.')[0] for group in feeds_data['groups']}
+
+        print("Refreshing links")
+        result = get_ics_json(group_to_feed)  # Get ICS data from calendar
+        if result:
+            print("Building JSON")
+            # Combine and build calendar from ICS files
+            build_Json(combine_calendar(import_calendar()), fixed_time)
+            res = fetch(fixed_time)  # Fetch the newly built calendar
+            
+        else:
+            res = ({"error": "Failed to refresh links."}), 500
+
+    if res:
+        response = jsonify(res)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    else:
+        response = {"status" : 0}
+
+    return response
 
 
 if __name__ == "__main__":
